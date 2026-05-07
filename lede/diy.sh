@@ -80,7 +80,7 @@ git_sparse_clone main https://github.com/linkease/istore luci
 # 晶晨宝盒
 git_sparse_clone main https://github.com/ophub/luci-app-amlogic luci-app-amlogic
 # 修改更新仓库
-sed -i "s|firmware_repo.*|firmware_repo 'https://github.com/wstanfeng/OpenWrt'|g" package/luci-app-amlogic/root/etc/config/amlogic
+sed -i "s|firmware_repo.*|firmware_repo 'https://github.com/wstanfeng/N1-openwrt'|g" package/luci-app-amlogic/root/etc/config/amlogic
 # coremark跑分定时清除
 sed -i '/\* \* \* \/etc\/coremark.sh/d' feeds/packages/utils/coremark/*
 # 取消定时任务

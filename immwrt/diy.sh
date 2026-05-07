@@ -60,7 +60,7 @@ git_sparse_clone main https://github.com/linkease/istore luci
 #==========================================================
 git_sparse_clone main https://github.com/ophub/luci-app-amlogic luci-app-amlogic
 # 修改更新仓库
-sed -i "s|firmware_repo.*|firmware_repo 'https://github.com/wstanfeng/OpenWrt'|g" package/luci-app-amlogic/root/etc/config/amlogic
+sed -i "s|firmware_repo.*|firmware_repo 'https://github.com/wstanfeng/N1-openwrt'|g" package/luci-app-amlogic/root/etc/config/amlogic
 # 取消定时任务
 sed -i '/cat >>.\/etc\/crontabs\/root/,/EOF/d' package/luci-app-amlogic/root/usr/sbin/openwrt-update-amlogic
 sed -i '/cat >>.\/etc\/crontabs\/root/,/EOF/d' package/luci-app-amlogic/root/usr/sbin/openwrt-update-kvm

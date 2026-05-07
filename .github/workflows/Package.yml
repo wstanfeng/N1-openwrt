@@ -40,7 +40,7 @@ env:
 
 jobs:
   Prepare:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'repository_dispatch' ||
@@ -99,7 +99,7 @@ jobs:
 
   Package:
     needs: Prepare
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: Package for ${{ matrix.version }}
     strategy:
       fail-fast: false
@@ -255,7 +255,7 @@ jobs:
 
   Cleanup:
     needs: Package
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: always()
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

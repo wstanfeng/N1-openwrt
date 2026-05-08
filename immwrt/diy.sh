@@ -30,9 +30,9 @@ function git_sparse_clone() {
 
 
 # 设置 argon 为默认主题
-sed -i 's|/luci-static/bootstrap|/luci-static/argon|g' feeds/luci/modules/luci-base/root/etc/config/luci
-sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' ./feeds/luci/collections/luci/Makefile
-sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' ./feeds/luci/collections/luci-light/Makefile
+# sed -i 's|/luci-static/bootstrap|/luci-static/argon|g' feeds/luci/modules/luci-base/root/etc/config/luci
+# sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' ./feeds/luci/collections/luci/Makefile
+# sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' ./feeds/luci/collections/luci-light/Makefile
 
 # openlist2
 rm -rf feeds/luci/applications/luci-app-openlist

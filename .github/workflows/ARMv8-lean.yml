@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: '0 20 * * *'
 
+permissions:
+  contents: write
+
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
@@ -53,7 +56,7 @@ jobs:
           df -hT
 
       - name: Maximize Build Space
-        uses: easimon/maximize-build-space@master
+        uses: easimon/maximize-build-space@v10
         with:
           swap-size-mb: 1024
           temp-reserve-mb: 100
@@ -98,16 +101,21 @@ jobs:
           echo "COMMIT_MESSAGE=$(git show -s --date=short --format='内容: %s')" >> $GITHUB_OUTPUT
           echo "COMMIT_HASH=$(git show -s --date=short --format='hash: %H')" >> $GITHUB_OUTPUT
 
+      - name: Apply Custom Feeds
+        run: |
+          cp "$GITHUB_WORKSPACE/$FEEDS_CONF" "$OPENWRT_PATH/feeds.conf.default"
+          echo "===== feeds.conf.default 当前内容 ====="
+          cat "$OPENWRT_PATH/feeds.conf.default"
+          echo "======================================="
+
       - name: Generate Variables
         id: variable
         run: |
-          cp $CONFIG_FILE $OPENWRT_PATH/.config
-          cd $OPENWRT_PATH
-          make defconfig > /dev/null 2>&1
           SOURCE_REPO="$(basename $REPO_URL)"
           echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-          DEVICE_TARGET=$(grep CONFIG_TARGET_BOARD .config | awk -F '"' '{print $2}')
-          DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | awk -F '"' '{print $2}')
+          # 配置里只有 CONFIG_TARGET_armsr_armv8_DEVICE_generic，没有 CONFIG_TARGET_BOARD/SUBTARGET（那两行 make defconfig 之后才会写入），所以按目标硬编码
+          DEVICE_TARGET=armsr
+          DEVICE_SUBTARGET=armv8
           echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
           echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_OUTPUT
           echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
@@ -126,17 +134,16 @@ jobs:
       - name: Update and Install Feeds
         run: |
           cd $OPENWRT_PATH
-          cp "$GITHUB_WORKSPACE/$FEEDS_CONF" feeds.conf.default
-          echo "===== feeds.conf.default 当前内容 ====="
-          cat feeds.conf.default
-          echo "======================================="
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Load Custom Configuration
         run: |
-          [ -e files ] && mv files $OPENWRT_PATH/files
-          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+          if [ -d "$GITHUB_WORKSPACE/files" ]; then
+            mkdir -p "$OPENWRT_PATH/files"
+            cp -a "$GITHUB_WORKSPACE/files/." "$OPENWRT_PATH/files/"
+          fi
+          [ -e "$GITHUB_WORKSPACE/$CONFIG_FILE" ] && cp "$GITHUB_WORKSPACE/$CONFIG_FILE" "$OPENWRT_PATH/.config"
           chmod +x $DIY_SCRIPT
           cd $OPENWRT_PATH
           $GITHUB_WORKSPACE/$DIY_SCRIPT
@@ -184,6 +191,13 @@ jobs:
           cd $OPENWRT_PATH/bin/targets/*/*
           cat sha256sums
           cp $OPENWRT_PATH/.config build.config
+          mapfile -t rootfs_files < <(find . -maxdepth 1 -type f -name '*rootfs.tar.gz' -printf '%f\n')
+          if [ "${#rootfs_files[@]}" -ne 1 ]; then
+            echo "::error::期望恰好生成 1 个 rootfs.tar.gz 产物，实际找到 ${#rootfs_files[@]} 个"
+            printf '%s\n' "${rootfs_files[@]}"
+            exit 1
+          fi
+          cp -f "${rootfs_files[0]}" rootfs.tar.gz
           # 打包 ipk 文件
           mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages 2>/dev/null || true
           tar -zcf Packages.tar.gz packages 2>/dev/null || true
@@ -215,7 +229,8 @@ jobs:
           body: |
             **This is Temporary Firmware for Armvirt 64**
             ### 📒 固件信息
-            - 🚀 [点击下载成品固件](https://github.com/${{ github.repository }}/releases/tag/${{ env.OPENWRT_TAG }})
+            - 📦 [点击下载当前 RootFS](https://github.com/${{ github.repository }}/releases/tag/${{ env.FIRMWARE_TAG }})
+            - 🚀 [点击下载封装成品固件](https://github.com/${{ github.repository }}/releases/tag/${{ env.OPENWRT_TAG }})
             - 💻 平台架构: ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }} (精简版固件)
             - ⚽ 固件源码: ${{ env.REPO_URL }}
             - 💝 源码分支: ${{ env.REPO_BRANCH }}

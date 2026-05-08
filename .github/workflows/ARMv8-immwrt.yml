@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: '0 20 * * *'
 
+permissions:
+  contents: write
+
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: master
@@ -39,190 +42,202 @@ jobs:
       DEVICE_SUBTARGET: ${{ steps.variable.outputs.DEVICE_SUBTARGET }}
 
     steps:
-    - name: Check Server Performance
-      run: |
-        echo "⚠️ 警告: 分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
-        echo "已知CPU型号(降序): 7763, 8370C, 8272CL, 8171M, E5-2673"
-        echo "--------------------------CPU信息--------------------------"
-        echo "CPU物理数量: $(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
-        echo "CPU核心数量: $(nproc)"
-        echo "CPU型号信息:$(cat /proc/cpuinfo | grep -m1 name | awk -F: '{print $2}')"
-        echo "--------------------------内存信息--------------------------"
-        sudo lshw -short -C memory | grep GiB || true
-        echo "--------------------------硬盘信息--------------------------"
-        df -hT
+      - name: Check Server Performance
+        run: |
+          echo "⚠️ 警告: 分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
+          echo "已知CPU型号(降序): 7763, 8370C, 8272CL, 8171M, E5-2673"
+          echo "--------------------------CPU信息--------------------------"
+          echo "CPU物理数量: $(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
+          echo "CPU核心数量: $(nproc)"
+          echo "CPU型号信息:$(cat /proc/cpuinfo | grep -m1 name | awk -F: '{print $2}')"
+          echo "--------------------------内存信息--------------------------"
+          sudo lshw -short -C memory | grep GiB || true
+          echo "--------------------------硬盘信息--------------------------"
+          df -hT
 
-    - name: Maximize Build Space
-      uses: easimon/maximize-build-space@v10
-      with:
-        swap-size-mb: 1024
-        temp-reserve-mb: 100
-        root-reserve-mb: 1024
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
-        remove-docker-images: 'true'
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@v10
+        with:
+          swap-size-mb: 1024
+          temp-reserve-mb: 100
+          root-reserve-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
 
-    - name: Initialization Environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android $AGENT_TOOLSDIRECTORY
-        sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
-        sudo apt update -y
-        sudo apt full-upgrade -y
-        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-        bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
-        g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
-        libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
-        libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
-        ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
-        python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
-        upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
-        sudo -E apt-get -y autoremove --purge
-        sudo -E apt-get -y clean
-        sudo timedatectl set-timezone "$TZ"
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android $AGENT_TOOLSDIRECTORY
+          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+          sudo apt update -y
+          sudo apt full-upgrade -y
+          sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+          g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+          libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
+          ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+          python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
+          upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get -y clean
+          sudo timedatectl set-timezone "$TZ"
 
-    - name: Clone Source Code
-      id: clone
-      run: |
-        df -hT $GITHUB_WORKSPACE
-        git clone --depth=1 $REPO_URL -b $REPO_BRANCH openwrt
-        cd openwrt
-        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
-        echo "COMMIT_AUTHOR=$(git show -s --date=short --format='作者: %an')" >> $GITHUB_OUTPUT
-        echo "COMMIT_DATE=$(git show -s --date=short --format='时间: %ci')" >> $GITHUB_OUTPUT
-        echo "COMMIT_MESSAGE=$(git show -s --date=short --format='内容: %s')" >> $GITHUB_OUTPUT
-        echo "COMMIT_HASH=$(git show -s --date=short --format='hash: %H')" >> $GITHUB_OUTPUT
+      - name: Clone Source Code
+        id: clone
+        run: |
+          df -hT $GITHUB_WORKSPACE
+          git clone --depth=1 $REPO_URL -b $REPO_BRANCH openwrt
+          cd openwrt
+          echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+          echo "COMMIT_AUTHOR=$(git show -s --date=short --format='作者: %an')" >> $GITHUB_OUTPUT
+          echo "COMMIT_DATE=$(git show -s --date=short --format='时间: %ci')" >> $GITHUB_OUTPUT
+          echo "COMMIT_MESSAGE=$(git show -s --date=short --format='内容: %s')" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=$(git show -s --date=short --format='hash: %H')" >> $GITHUB_OUTPUT
 
-    - name: Generate Variables
-      id: variable
-      run: |
-        cp $CONFIG_FILE $OPENWRT_PATH/.config
-        cd $OPENWRT_PATH
-        make defconfig > /dev/null 2>&1
-        SOURCE_REPO="$(basename $REPO_URL)"
-        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(grep CONFIG_TARGET_BOARD .config | awk -F '"' '{print $2}')
-        DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | awk -F '"' '{print $2}')
-        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_OUTPUT
-        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
-        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_OUTPUT
+      - name: Apply Custom Feeds
+        run: |
+          cp "$GITHUB_WORKSPACE/$FEEDS_CONF" "$OPENWRT_PATH/feeds.conf.default"
+          echo "===== feeds.conf.default 当前内容 ====="
+          cat "$OPENWRT_PATH/feeds.conf.default"
+          echo "======================================="
 
-    - name: Cache Toolchain
-      if: env.CACHE_TOOLCHAIN == 'true'
-      uses: HiGarfield/cachewrtbuild@main
-      with:
-        ccache: true
-        # mixkey 包含 config 与 diy 脚本的哈希值 —— 配置一改自动失效缓存，无需手动勾 clean_cache
-        mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ hashFiles('immwrt/armv8.config', 'immwrt/diy.sh', 'immwrt/feeds.conf.default') }}
-        prefix: ${{ env.OPENWRT_PATH }}
-        clean: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean_cache || 'false' }}
+      - name: Generate Variables
+        id: variable
+        run: |
+          SOURCE_REPO="$(basename $REPO_URL)"
+          echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+          # 配置里只有 CONFIG_TARGET_armsr_armv8_DEVICE_generic，没有 CONFIG_TARGET_BOARD/SUBTARGET（那两行 make defconfig 之后才会写入），所以按目标硬编码
+          DEVICE_TARGET=armsr
+          DEVICE_SUBTARGET=armv8
+          echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+          echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_OUTPUT
+          echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+          echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_OUTPUT
 
-    - name: Update and Install Feeds
-      run: |
-        cd $OPENWRT_PATH
-        cp "$GITHUB_WORKSPACE/$FEEDS_CONF" feeds.conf.default
-        echo "===== feeds.conf.default 当前内容 ====="
-        cat feeds.conf.default
-        echo "======================================="
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+      - name: Cache Toolchain
+        if: env.CACHE_TOOLCHAIN == 'true'
+        uses: HiGarfield/cachewrtbuild@main
+        with:
+          ccache: true
+          # mixkey 包含 config 与 diy 脚本的哈希值 —— 配置一改自动失效缓存，无需手动勾 clean_cache
+          mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ hashFiles('immwrt/armv8.config', 'immwrt/diy.sh', 'immwrt/feeds.conf.default') }}
+          prefix: ${{ env.OPENWRT_PATH }}
+          clean: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean_cache || 'false' }}
 
-    - name: Load Custom Configuration
-      run: |
-        [ -e files ] && mv files $OPENWRT_PATH/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
-        chmod +x $DIY_SCRIPT
-        cd $OPENWRT_PATH
-        $GITHUB_WORKSPACE/$DIY_SCRIPT
+      - name: Update and Install Feeds
+        run: |
+          cd $OPENWRT_PATH
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
-    - name: Download DL Package
-      run: |
-        cd $OPENWRT_PATH
-        make defconfig
-        make download -j$(nproc)
-        find dl -size -1024c -exec rm -f {} \;
+      - name: Load Custom Configuration
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/files" ]; then
+            mkdir -p "$OPENWRT_PATH/files"
+            cp -a "$GITHUB_WORKSPACE/files/." "$OPENWRT_PATH/files/"
+          fi
+          [ -e "$GITHUB_WORKSPACE/$CONFIG_FILE" ] && cp "$GITHUB_WORKSPACE/$CONFIG_FILE" "$OPENWRT_PATH/.config"
+          chmod +x $DIY_SCRIPT
+          cd $OPENWRT_PATH
+          $GITHUB_WORKSPACE/$DIY_SCRIPT
 
-    - name: Compile Firmware
-      id: compile
-      run: |
-        cd $OPENWRT_PATH
-        echo -e "$(nproc) thread compile"
-        make -j$(nproc) || make -j1 || make -j1 V=s
-        echo "status=success" >> $GITHUB_OUTPUT
-        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
-        echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+      - name: Download DL Package
+        run: |
+          cd $OPENWRT_PATH
+          make defconfig
+          make download -j$(nproc)
+          find dl -size -1024c -exec rm -f {} \;
 
-    - name: Check Space Usage
-      if: always()
-      run: df -hT
+      - name: Compile Firmware
+        id: compile
+        run: |
+          cd $OPENWRT_PATH
+          echo -e "$(nproc) thread compile"
+          make -j$(nproc) || make -j1 || make -j1 V=s
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+          echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
 
-    - name: Upload Error Logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: error-logs-${{ env.FILE_DATE }}
-        path: |
-          ${{ env.OPENWRT_PATH }}/logs/
-          ${{ env.OPENWRT_PATH }}/.config
+      - name: Check Space Usage
+        if: always()
+        run: df -hT
 
-    - name: Upload Bin Directory
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.OPENWRT_PATH }}/bin
+      - name: Upload Error Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs-${{ env.FILE_DATE }}
+          path: |
+            ${{ env.OPENWRT_PATH }}/logs/
+            ${{ env.OPENWRT_PATH }}/.config
 
-    - name: Organize Files
-      if: steps.compile.outputs.status == 'success'
-      run: |
-        cd $OPENWRT_PATH/bin/targets/*/*
-        cat sha256sums
-        cp $OPENWRT_PATH/.config build.config
-        # 打包 ipk 文件
-        mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages 2>/dev/null || true
-        tar -zcf Packages.tar.gz packages 2>/dev/null || true
-        # 删除不需要的文件和目录
-        rm -rf packages feeds.buildinfo version.buildinfo
-        rm -rf */ 2>/dev/null || true
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-        echo "📦 最终上传文件列表:"
-        ls -lh
+      - name: Upload Bin Directory
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+          path: ${{ env.OPENWRT_PATH }}/bin
 
-    - name: Upload Firmware To Artifact
-      if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE_PATH }}
+      - name: Organize Files
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          cd $OPENWRT_PATH/bin/targets/*/*
+          cat sha256sums
+          cp $OPENWRT_PATH/.config build.config
+          mapfile -t rootfs_files < <(find . -maxdepth 1 -type f -name '*rootfs.tar.gz' -printf '%f\n')
+          if [ "${#rootfs_files[@]}" -ne 1 ]; then
+            echo "::error::期望恰好生成 1 个 rootfs.tar.gz 产物，实际找到 ${#rootfs_files[@]} 个"
+            printf '%s\n' "${rootfs_files[@]}"
+            exit 1
+          fi
+          cp -f "${rootfs_files[0]}" rootfs.tar.gz
+          # 打包 ipk 文件
+          mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages 2>/dev/null || true
+          tar -zcf Packages.tar.gz packages 2>/dev/null || true
+          # 删除不需要的文件和目录
+          rm -rf packages feeds.buildinfo version.buildinfo
+          rm -rf */ 2>/dev/null || true
+          echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
+          echo "📦 最终上传文件列表:"
+          ls -lh
 
-    - name: Upload Firmware To Release
-      if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
-      uses: ncipollo/release-action@v1
-      with:
-        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
-        allowUpdates: true
-        tag: ${{ env.FIRMWARE_TAG }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ${{ env.FIRMWARE_PATH }}/*
-        body: |
-          **This is Temporary Firmware for Armvirt 64**
-          ### 📒 固件信息
-          - 🚀 [点击下载成品固件](https://github.com/${{ github.repository }}/releases/tag/${{ env.OPENWRT_TAG }})
-          - 💻 平台架构: ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }} (immortalwrt 精简版固件)
-          - ⚽ 固件源码: ${{ env.REPO_URL }}
-          - 💝 源码分支: ${{ env.REPO_BRANCH }}
-          - 🌐 默认地址: 192.168.1.1
-          - 🔑 默认密码: password
-          ### 🧊 固件版本
-          - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
-          - ${{ steps.clone.outputs.COMMIT_AUTHOR }}
-          - ${{ steps.clone.outputs.COMMIT_DATE }}
-          - ${{ steps.clone.outputs.COMMIT_MESSAGE }}
-          - ${{ steps.clone.outputs.COMMIT_HASH }}
+      - name: Upload Firmware To Artifact
+        if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+          path: ${{ env.FIRMWARE_PATH }}
+
+      - name: Upload Firmware To Release
+        if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+          allowUpdates: true
+          tag: ${{ env.FIRMWARE_TAG }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: ${{ env.FIRMWARE_PATH }}/*
+          body: |
+            **This is Temporary Firmware for Armvirt 64**
+            ### 📒 固件信息
+            - 📦 [点击下载当前 RootFS](https://github.com/${{ github.repository }}/releases/tag/${{ env.FIRMWARE_TAG }})
+            - 🚀 [点击下载封装成品固件](https://github.com/${{ github.repository }}/releases/tag/${{ env.OPENWRT_TAG }})
+            - 💻 平台架构: ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }} (immortalwrt 精简版固件)
+            - ⚽ 固件源码: ${{ env.REPO_URL }}
+            - 💝 源码分支: ${{ env.REPO_BRANCH }}
+            - 🌐 默认地址: 192.168.1.1
+            - 🔑 默认密码: password
+            ### 🧊 固件版本
+            - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
+            - ${{ steps.clone.outputs.COMMIT_AUTHOR }}
+            - ${{ steps.clone.outputs.COMMIT_DATE }}
+            - ${{ steps.clone.outputs.COMMIT_MESSAGE }}
+            - ${{ steps.clone.outputs.COMMIT_HASH }}

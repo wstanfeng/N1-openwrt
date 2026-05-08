@@ -54,6 +54,9 @@ git clone https://github.com/EasyTier/luci-app-easytier package/luci-app-easytie
 git_sparse_clone main https://github.com/linkease/istore-ui app-store-ui
 git_sparse_clone main https://github.com/linkease/istore luci
 
+# podman
+git clone https://github.com/Zerogiven-OpenWRT-Packages/luci-app-podman.git package/luci-app-podman
+
 
 # 晶晨宝盒 
 git_sparse_clone main https://github.com/ophub/luci-app-amlogic luci-app-amlogic
@@ -66,6 +69,6 @@ sed -i '/cat >>.\/etc\/crontabs\/root/,/EOF/d' package/luci-app-amlogic/root/usr
 sed -i "s|ARMv8|ARMv8_immwrt|g" package/luci-app-amlogic/root/etc/config/amlogic
 
 # uhttpd HTTPS 默认配置注释掉，规避 ustream-ssl 与 openssl 3.0+ 兼容性问题
-sed -i 's/^\s*list listen_https\s*/# &/g' ./package/network/services/uhttpd/files/uhttpd.config
+# sed -i 's/^\s*list listen_https\s*/# &/g' ./package/network/services/uhttpd/files/uhttpd.config
 
 echo "========= diy-immwrt.sh 执行完成 ========="

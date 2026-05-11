@@ -18,6 +18,14 @@ sed -i 's/root:::0:99999:7:::/root:$1$V4UetPzk$CYXluq4wUazHjmCDBCqXF.::0:99999:7
 # 修改主机信息
 echo -n "$(date +"%Y%m%d")" > package/base-files/files/etc/openwrt_version
 
+# 补齐 wget-any 虚拟包：lede 主线 wget Makefile 未声明 PROVIDES:=wget-any，
+# 而 jerrykuku/luci-theme-argon 等上游插件已改用 +wget-any 依赖。
+# 在 wget/Default 块加上 PROVIDES，wget-ssl / wget-nossl 即可同时 provide wget-any。
+WGET_MK="feeds/packages/net/wget/Makefile"
+if [ -f "$WGET_MK" ] && ! grep -q "PROVIDES:=wget-any" "$WGET_MK"; then
+  sed -i '/^define Package\/wget\/Default$/a\  PROVIDES:=wget-any' "$WGET_MK"
+fi
+
 # Git 稀疏克隆
 function git_sparse_clone() {
   branch="$1" repourl="$2" && shift 2

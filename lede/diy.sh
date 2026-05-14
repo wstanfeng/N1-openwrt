@@ -20,6 +20,10 @@ if [ -f "$WGET_MK" ] && ! grep -q "PROVIDES:=wget-any" "$WGET_MK"; then
   sed -i '/^define Package\/wget\/Default$/a\  PROVIDES:=wget-any' "$WGET_MK"
 fi
 
+# 禁用 ksmbd 及相关包，避免内核 6.12 与 ksmbd 3.5.4 不兼容
+# ksmbd-server 和 autosamba 依赖 kmod-fs-ksmbd，必须一起禁用
+rm -rf package/kernel/ksmbd
+
 # Git稀疏克隆，只克隆指定目录到本地
 function git_sparse_clone() {
   branch="$1" repourl="$2" && shift 2

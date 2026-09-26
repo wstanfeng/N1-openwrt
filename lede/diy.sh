@@ -7,7 +7,7 @@
 # sed -i 's/\/bin\/ash/\/usr\/bin\/zsh/g' package/base-files/files/etc/passwd
 
 # TTYD 免登录
-sed -i 's|/bin/login|/bin/login -f root|g' feeds/packages/utils/ttyd/files/ttyd.config
+# sed -i 's|/bin/login|/bin/login -f root|g' feeds/packages/utils/ttyd/files/ttyd.config
 
 # 修改主机信息
 echo -n "$(date +"%Y%m%d")" > package/base-files/files/etc/openwrt_version
@@ -15,14 +15,14 @@ echo -n "$(date +"%Y%m%d")" > package/base-files/files/etc/openwrt_version
 # 补齐 wget-any 虚拟包：lede 主线 wget Makefile 未声明 PROVIDES:=wget-any，
 # 而 jerrykuku/luci-theme-argon 等上游插件已改用 +wget-any 依赖。
 # 在 wget/Default 块加上 PROVIDES，wget-ssl / wget-nossl 即可同时 provide wget-any。
-WGET_MK="feeds/packages/net/wget/Makefile"
-if [ -f "$WGET_MK" ] && ! grep -q "PROVIDES:=wget-any" "$WGET_MK"; then
-  sed -i '/^define Package\/wget\/Default$/a\  PROVIDES:=wget-any' "$WGET_MK"
-fi
+# WGET_MK="feeds/packages/net/wget/Makefile"
+# if [ -f "$WGET_MK" ] && ! grep -q "PROVIDES:=wget-any" "$WGET_MK"; then
+#  sed -i '/^define Package\/wget\/Default$/a\  PROVIDES:=wget-any' "$WGET_MK"
+# fi
 
 # 禁用 ksmbd 及相关包，避免内核 6.12 与 ksmbd 3.5.4 不兼容
 # ksmbd-server 和 autosamba 依赖 kmod-fs-ksmbd，必须一起禁用
-rm -rf package/kernel/ksmbd
+# rm -rf package/kernel/ksmbd
 
 # Git稀疏克隆，只克隆指定目录到本地
 function git_sparse_clone() {
